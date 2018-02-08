@@ -123,10 +123,10 @@ function(cargo_build_command source target cmd)
 
     cargo_command(${source} c_cmd)
 
-    set(tmp ${tmp} ${c_cmd} build ${target})
-    set(tmp ${tmp} --message-format=json)
+    list(APPEND c_cmd build ${target})
+    list(APPEND c_cmd --message-format=json)
 
-    set(${cmd} ${tmp} PARENT_SCOPE)
+    set(${cmd} ${c_cmd} PARENT_SCOPE)
 endfunction()
 
 
@@ -136,11 +136,12 @@ function(cargo_command source cmd)
     set(CARGO_TARGET ${CMAKE_BINARY_DIR}/cargo-${CARGO_VERSION}/${CARGO_TARGET})
     make_directory( ${CARGO_TARGET} )
 
-    set(tmp        ${CMAKE_COMMAND} -E env CARGO_TARGET_DIR=${CARGO_TARGET})
-    set(tmp ${tmp} ${CMAKE_COMMAND} -E chdir ${source})
-    set(tmp ${tmp} ${CARGO_EXECUTABLE})
+    set(c_cmd)
+    list(APPEND c_cmd ${CMAKE_COMMAND} -E env CARGO_TARGET_DIR=${CARGO_TARGET})
+    list(APPEND c_cmd ${CMAKE_COMMAND} -E chdir ${source})
+    list(APPEND c_cmd ${CARGO_EXECUTABLE})
 
-    set(${cmd} ${tmp} PARENT_SCOPE)
+    set(${cmd} ${c_cmd} PARENT_SCOPE)
 endfunction()
 
 
