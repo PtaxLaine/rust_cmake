@@ -1,16 +1,33 @@
 find_package(PythonInterp "3" REQUIRED)
 include(FindPackageHandleStandardArgs)
 
+if(NOT("${cargo_FIND_COMPONENTS}" STREQUAL ""))
+    list(GET cargo_FIND_COMPONENTS 0 CARGO_TOOLCHAIN)
+    if(NOT("${CARGO_TOOLCHAIN}" STREQUAL ""))
+        set(CARGO_TOOLCHAIN "+${CARGO_TOOLCHAIN}")
+    endif()
+else()
+    set(CARGO_TOOLCHAIN "")
+endif()
+
+
 find_program(CARGO_EXECUTABLE cargo)
-execute_process(COMMAND ${CARGO_EXECUTABLE} --version
+if("${CARGO_EXECUTABLE}" STREQUAL "CARGO_EXECUTABLE-NOTFOUND")
+    message(FATAL_ERROR "cargo not found. Download it on: https://www.rust-lang.org/install.html")
+endif()
+execute_process(COMMAND ${CARGO_EXECUTABLE} ${CARGO_TOOLCHAIN} --version
                 OUTPUT_VARIABLE CARGO_VERSION
+                ERROR_VARIABLE  CARGO_VERSION_err
+                RESULT_VARIABLE CARGO_VERSION_result
 )
+if(NOT(${CARGO_VERSION_result} EQUAL 0))
+    message(FATAL_ERROR ${CARGO_VERSION_err})
+endif()
 string(REGEX REPLACE "cargo +([0-9]+.[0-9]+.[0-9]+).*" "\\1" CARGO_VERSION ${CARGO_VERSION})
 find_package_handle_standard_args(cargo
     REQUIRED_VARS CARGO_EXECUTABLE
     VERSION_VAR CARGO_VERSION
 )
-
 
 function(cargo_build_binary)
     set(one_value_keywords SOURCE_DIR TARGET_MODE TARGET RESULT)
@@ -134,6 +151,7 @@ function(cargo_command source cmd)
     list(APPEND c_cmd ${CMAKE_COMMAND} -E env CARGO_TARGET_DIR=${CARGO_TARGET})
     list(APPEND c_cmd ${CMAKE_COMMAND} -E chdir ${source})
     list(APPEND c_cmd ${CARGO_EXECUTABLE})
+    list(APPEND c_cmd ${CARGO_TOOLCHAIN})
 
     set(${cmd} ${c_cmd} PARENT_SCOPE)
 endfunction()
