@@ -12,12 +12,24 @@ find_package_handle_standard_args(cargo
 )
 
 
-function(cargo_build_binary source target bin_name bin_path)
-    __cargo_parse_argv(4 cmd_args ${ARGV})
-    message(STATUS "Build cargo binary `${bin_name}` from ${source}")
-    cargo_build_command(${source} ${target} cmd)
+function(cargo_build_binary)
+    set(one_value_keywords SOURCE_DIR TARGET_MODE TARGET RESULT)
+    set(multi_value_keywords CARGO_ARGS)
+    cmake_parse_arguments(ARGS "" "${one_value_keywords}" "${multi_value_keywords}" ${ARGV})
+    if(NOT (EXISTS ${ARGS_SOURCE_DIR}))
+        message(FATAL_ERROR "${ARGS_SOURCE_DIR} not found")
+    endif()
+    if("" STREQUAL "${ARGS_TARGET}")
+        message(FATAL_ERROR "arg TARGET is empty")
+    endif()
+    if("" STREQUAL "${ARGS_TARGET_MODE}")
+        message(FATAL_ERROR "arg TARGET_MODE is empty")
+    endif()
+
+    message(STATUS "Build cargo binary `${ARGS_TARGET}` from ${ARGS_SOURCE_DIR}")
+    cargo_build_command(${ARGS_SOURCE_DIR} ${ARGS_TARGET_MODE} cmd)
     execute_process(
-        COMMAND ${cmd} "--bin" ${bin_name} ${cmd_args}
+        COMMAND ${cmd} "--bin" ${ARGS_TARGET} ${ARGS_CARGO_ARGS}
         RESULT_VARIABLE result
         OUTPUT_VARIABLE out
         ERROR_VARIABLE  eout
@@ -27,35 +39,32 @@ function(cargo_build_binary source target bin_name bin_path)
     __cargo_errs_print("${out}")
     if(${result} EQUAL 0)
         __cargo_msg_parse(${out} bin bin)
-        set(${bin_path} ${bin} PARENT_SCOPE)
+        set(${ARGS_RESULT} ${bin} PARENT_SCOPE)
         message(STATUS "${bin}")
-        message(STATUS "Build cargo (${source}): successful")
+        message(STATUS "Build cargo (${ARGS_SOURCE_DIR}): successful")
     else()
-        message(FATAL_ERROR "Build cargo (${source}): failed! Error code: ${result}\n${eout}")
+        message(FATAL_ERROR "Build cargo (${ARGS_SOURCE_DIR}): failed! Error code: ${result}\n${eout}")
     endif()
 endfunction()
 
+function(cargo_build_library)
+    set(one_value_keywords SOURCE_DIR TARGET_MODE TARGET_TYPE RESULT)
+    set(multi_value_keywords CARGO_ARGS)
+    cmake_parse_arguments(ARGS "" "${one_value_keywords}" "${multi_value_keywords}" ${ARGV})
+    if(NOT (EXISTS ${ARGS_SOURCE_DIR}))
+        message(FATAL_ERROR "${ARGS_SOURCE_DIR} not found")
+    endif()
+    if("" STREQUAL "${ARGS_TARGET_TYPE}")
+        message(FATAL_ERROR "arg TARGET_TYPE is empty")
+    endif()
+    if("" STREQUAL "${ARGS_TARGET_MODE}")
+        message(FATAL_ERROR "arg TARGET_MODE is empty")
+    endif()
 
-function(cargo_build_staticlib source target lib_path)
-    __cargo_parse_argv(3 cmd_args ${ARGV})
-    __cargo_build_library(${source} ${target} staticlib lib ${cmd_args})
-    set(${lib_path} ${lib} PARENT_SCOPE)
-endfunction()
-
-
-function(cargo_build_cdylib source target lib_path)
-    __cargo_parse_argv(3 cmd_args ${ARGV})
-    __cargo_build_library(${source} ${target} cdylib lib ${cmd_args})
-    set(${lib_path} ${lib} PARENT_SCOPE)
-endfunction()
-
-
-function(__cargo_build_library source target type lib_path)
-    __cargo_parse_argv(4 cmd_args ${ARGV})
-    message(STATUS "Build cargo ${type} from ${source}")
-    cargo_build_command(${source} ${target} cmd)
+    message(STATUS "Build cargo ${TARGET_TYPE} from ${ARGS_SOURCE_DIR}")
+    cargo_build_command(${ARGS_SOURCE_DIR} ${ARGS_TARGET_MODE} cmd)
     execute_process(
-        COMMAND ${cmd} "--lib" ${cmd_args}
+        COMMAND ${cmd} "--lib" ${ARGS_CARGO_ARGS}
         RESULT_VARIABLE result
         OUTPUT_VARIABLE out
         ERROR_VARIABLE  eout
@@ -64,29 +73,14 @@ function(__cargo_build_library source target type lib_path)
         )
     __cargo_errs_print("${out}")
     if(${result} EQUAL 0)
-        __cargo_msg_parse(${out} ${type} lib)
-        set(${lib_path} ${lib} PARENT_SCOPE)
+        __cargo_msg_parse(${out} ${ARGS_TARGET_TYPE} lib)
+        set(${ARGS_RESULT} ${lib} PARENT_SCOPE)
         message(STATUS "${lib}")
-        message(STATUS "Build cargo ${type} from (${source}): successful")
+        message(STATUS "Build cargo ${ARGS_TARGET_TYPE} from (${ARGS_SOURCE_DIR}): successful")
     else()
-        message(FATAL_ERROR "Build cargo (${source}): failed! Error code: ${result}\n${eout}")
+        message(FATAL_ERROR "Build cargo (${ARGS_SOURCE_DIR}): failed! Error code: ${result}\n${eout}")
     endif()
 endfunction()
-
-
-macro(__cargo_parse_argv offset result)
-    math(EXPR offset "${offset}+2")
-    list(LENGTH ARGV argv_len)
-    set(cmd_args)
-    if(${argv_len} GREATER ${offset})
-        math(EXPR stop "${argv_len}-1")
-        foreach(i RANGE ${offset} ${stop})
-            list(GET ARGV ${i} item)
-            list(APPEND cmd_args ${item})
-        endforeach()
-    endif()
-    set(${result} ${cmd_args})
-endmacro()
 
 
 function(__cargo_msg_parse cargo_message type path)
